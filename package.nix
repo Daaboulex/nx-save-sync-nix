@@ -59,9 +59,19 @@ let
       chmod -R u+w "$APP_DIR"
     fi
     
-    # Run the app
+    # Run the app with environment fixes
     source "$VENV_DIR/bin/activate"
     cd "$APP_DIR"
+    
+    # Show local IP for Switch connection
+    echo "=== Your PC IP address(es) for Switch connection ==="
+    ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127' || hostname -I | tr ' ' '\n' | head -3
+    echo "==================================================="
+    
+    # Fix window positioning on Wayland (force Xwayland if needed)
+    export QT_QPA_PLATFORM=xcb 2>/dev/null || true
+    export GDK_BACKEND=x11 2>/dev/null || true
+    
     exec python3 main.py "$@"
   '';
 
