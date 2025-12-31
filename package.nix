@@ -57,6 +57,11 @@ let
       chmod -R u+w "$APP_DIR" 2>/dev/null || true
       cp -r @src@/desktop/* "$APP_DIR/"
       chmod -R u+w "$APP_DIR"
+      
+      # PATCH: Remove unnecessary internet check that blocks LAN sync
+      # The original code checks google.com before allowing sync - not needed for LAN!
+      sed -i 's/urllib.request.urlopen.*google.com.*timeout=5.*/pass  # Internet check removed by NixOS patch/' "$APP_DIR/main.py"
+      echo "Applied internet-check patch to main.py"
     fi
     
     # Run the app with environment fixes
