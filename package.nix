@@ -58,10 +58,26 @@ let
       cp -r @src@/desktop/* "$APP_DIR/"
       chmod -R u+w "$APP_DIR"
       
-      # PATCH: Remove unnecessary internet check that blocks LAN sync
-      # The original code checks google.com before allowing sync - not needed for LAN!
+      # PATCH 1: Remove unnecessary internet check that blocks LAN sync
       sed -i 's/urllib.request.urlopen.*google.com.*timeout=5.*/pass  # Internet check removed by NixOS patch/' "$APP_DIR/main.py"
-      echo "Applied internet-check patch to main.py"
+      
+      # PATCH 2: Fix server socket - use sendall() instead of send() for reliable transfer
+      sed -i 's/client_socket\.send(headers\.encode())/client_socket.sendall(headers.encode())/' "$APP_DIR/main.py"
+      sed -i 's/client_socket\.send(data)/client_socket.sendall(data)/' "$APP_DIR/main.py"
+      
+      # PATCH 3: Increase chunk size from 4096 to 65536 for faster transfer
+      sed -i 's/f\.read(4096)/f.read(65536)/' "$APP_DIR/main.py"
+      
+      # PATCH 4: Add debug output - print when client connects
+      sed -i 's/def handle_client(self, client_socket):/def handle_client(self, client_socket):\n        print(f"[DEBUG] Client connected: {client_socket.getpeername()}")/' "$APP_DIR/main.py"
+      
+      # PATCH 5: Add debug output - print request received
+      sed -i 's/request = client_socket.recv(1024)/request = client_socket.recv(1024)\n            print(f"[DEBUG] Received request: {request[:100]}")/' "$APP_DIR/main.py"
+      
+      # PATCH 6: Add debug output - print file sending
+      sed -i 's/file_size = os.path.getsize/print(f"[DEBUG] Sending temp.zip...")\n            file_size = os.path.getsize/' "$APP_DIR/main.py"
+      
+      echo "Applied NixOS patches to main.py (internet check, sendall, chunk size, debug)"
     fi
     
     # Run the app with environment fixes
