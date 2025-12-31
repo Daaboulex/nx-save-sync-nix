@@ -44,14 +44,19 @@ let
       python3 -m venv "$VENV_DIR"
       source "$VENV_DIR/bin/activate"
       pip install --upgrade pip
-      pip install dearpygui requests keyboard
+      pip install dearpygui requests keyboard pynput
+      # Install patched pynput for xorg fix (as per upstream build docs)
+      pip install git+https://github.com/maddinpsy/pynput.git@fixup-xorg-merge-artifact || true
       deactivate
       echo "Setup complete!"
     fi
     
-    # Copy/update app files
+    # Copy/update app files (handle Nix store read-only files)
     if [ ! -f "$APP_DIR/main.py" ] || [ "@src@/desktop/main.py" -nt "$APP_DIR/main.py" ]; then
+      rm -rf "$APP_DIR"/* 2>/dev/null || true
+      chmod -R u+w "$APP_DIR" 2>/dev/null || true
       cp -r @src@/desktop/* "$APP_DIR/"
+      chmod -R u+w "$APP_DIR"
     fi
     
     # Run the app
@@ -68,6 +73,12 @@ let
       python3Packages.pip
       python3Packages.virtualenv
       
+      # For building evdev (pynput dependency)
+      gcc
+      gnumake
+      linuxHeaders
+      git
+      
       # Graphics/GUI deps for dearpygui
       libGL
       libxkbcommon
@@ -80,7 +91,7 @@ let
       xorg.libXfixes
       wayland
       
-      # For keyboard module
+      # For keyboard/pynput module
       xorg.libXtst
     ];
 
