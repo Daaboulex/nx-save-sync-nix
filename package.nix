@@ -9,6 +9,7 @@
 , makeDesktopItem
 , copyDesktopItems
 , writeShellScript
+, imagemagick
 }:
 
 let
@@ -142,7 +143,7 @@ in stdenv.mkDerivation {
   pname = "nx-save-sync";
   inherit version src;
 
-  nativeBuildInputs = [ copyDesktopItems ];
+  nativeBuildInputs = [ copyDesktopItems imagemagick ];
 
   dontBuild = true;
   dontConfigure = true;
@@ -158,9 +159,18 @@ in stdenv.mkDerivation {
     # Copy source for reference
     cp -r desktop $out/share/nx-save-sync/
     
-    # Install icon
+    # Install icon - convert ico to png for proper Linux support
     mkdir -p $out/share/icons/hicolor/256x256/apps
-    cp desktop/include/icon.ico $out/share/icons/hicolor/256x256/apps/nx-save-sync.ico 2>/dev/null || true
+    mkdir -p $out/share/icons/hicolor/128x128/apps
+    mkdir -p $out/share/icons/hicolor/64x64/apps
+    mkdir -p $out/share/icons/hicolor/48x48/apps
+    
+    # Convert ico to png (ico files contain multiple sizes)
+    magick desktop/include/icon.ico -resize 256x256 $out/share/icons/hicolor/256x256/apps/nx-save-sync.png || \
+      convert desktop/include/icon.ico[0] $out/share/icons/hicolor/256x256/apps/nx-save-sync.png || true
+    magick desktop/include/icon.ico -resize 128x128 $out/share/icons/hicolor/128x128/apps/nx-save-sync.png || true
+    magick desktop/include/icon.ico -resize 64x64 $out/share/icons/hicolor/64x64/apps/nx-save-sync.png || true
+    magick desktop/include/icon.ico -resize 48x48 $out/share/icons/hicolor/48x48/apps/nx-save-sync.png || true
     
     runHook postInstall
   '';
