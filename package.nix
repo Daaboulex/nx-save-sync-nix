@@ -114,17 +114,17 @@ let
       # Graphics/GUI deps for dearpygui
       libGL
       libxkbcommon
-      xorg.libX11
-      xorg.libXcursor
-      xorg.libXrandr
-      xorg.libXinerama
-      xorg.libXi
-      xorg.libXext
-      xorg.libXfixes
+      libx11
+      libxcursor
+      libxrandr
+      libxinerama
+      libxi
+      libxext
+      libxfixes
       wayland
       
       # For keyboard/pynput module
-      xorg.libXtst
+      libxtst
     ];
 
     runScript = builtins.replaceStrings ["@src@"] ["${src}"] (builtins.readFile setupScript);
