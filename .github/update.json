@@ -1,0 +1,17 @@
+{
+  "package": "nx-save-sync",
+  "upstream": {
+    "type": "github-release",
+    "owner": "luckylat",
+    "repo": "nx_save_sync"
+  },
+  "packageFile": "package.nix",
+  "hashes": [
+    "hash"
+  ],
+  "verify": {
+    "binary": null,
+    "args": null,
+    "check": "desktop"
+  }
+}
