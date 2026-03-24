@@ -1,100 +1,143 @@
-name: Update NX-Save-Sync
-
+name: Update
 on:
   schedule:
-    # Run daily at 7 AM UTC
     - cron: '0 7 * * *'
   workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: DeterminateSystems/nix-installer-action@d96bc962e61b3049ce8128d03d57a1144fa96539
+      - uses: DeterminateSystems/magic-nix-cache-action@87e8236f46702ab0ce5a058b605a173ec88d54e5  # v8
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@v27
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
-
-      - name: Get latest release
-        id: get_release
+      - name: Run update
+        id: update
         run: |
-          # Get latest release from upstream (no 'v' prefix on tags)
-          LATEST=$(curl -s "https://api.github.com/repos/Xc987/NX-Save-Sync/releases/latest" | jq -r '.tag_name')
-          echo "Latest release: $LATEST"
-          echo "release=$LATEST" >> $GITHUB_OUTPUT
-          
-          # Get current version from package.nix
-          CURRENT=$(grep -oP 'version = "\K[^"]+' package.nix | head -1)
-          echo "Current version: $CURRENT"
-          echo "current=$CURRENT" >> $GITHUB_OUTPUT
-
-      - name: Check if update needed
-        id: check
-        run: |
-          if [ "${{ steps.get_release.outputs.release }}" = "${{ steps.get_release.outputs.current }}" ]; then
-            echo "No update needed"
-            echo "update=false" >> $GITHUB_OUTPUT
-          else
-            echo "Update available!"
-            echo "update=true" >> $GITHUB_OUTPUT
+          set +e
+          bash scripts/update.sh 2>&1 | tee /tmp/update.log
+          EXIT_CODE=$?
+          {
+            echo "exit_code=$EXIT_CODE"
+          } >> "$GITHUB_OUTPUT"
+          if [ -f /tmp/update-outputs.env ]; then
+            cat /tmp/update-outputs.env >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Update package.nix
-        if: steps.check.outputs.update == 'true'
+      # Silent success: commit + push
+      - name: Push update
+        if: steps.update.outputs.updated == 'true' && steps.update.outputs.exit_code == '0'
         run: |
-          NEW_VERSION="${{ steps.get_release.outputs.release }}"
-          # Remove 'v' prefix if present
-          NEW_VERSION="${NEW_VERSION#v}"
-          
-          # Update version
-          sed -i "s/version = \"[^\"]*\";/version = \"$NEW_VERSION\";/" package.nix
-          
-          echo "Updated to version: $NEW_VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A ':!AI-*.json'
+          OLDV="${{ steps.update.outputs.old_version }}"
+          NEWV="${{ steps.update.outputs.new_version }}"
+          PKG="${{ steps.update.outputs.package_name }}"
+          git diff --cached --quiet && { echo "No changes to commit"; exit 0; }
+          git commit -m "chore: update ${PKG} ${OLDV} → ${NEWV}"
+          git push
 
-      - name: Get new hash
-        if: steps.check.outputs.update == 'true'
-        run: |
-          # Try to build and capture the hash error
-          NEW_HASH=$(nix build --impure --expr '
-            let
-              pkgs = import <nixpkgs> {};
-            in pkgs.fetchFromGitHub {
-              owner = "Xc987";
-              repo = "NX-Save-Sync";
-              rev = "${{ steps.get_release.outputs.release }}";
-              hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+      # Auto-close previous failure issues on success
+      - name: Close resolved issues
+        if: steps.update.outputs.updated == 'true' && steps.update.outputs.exit_code == '0'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7
+        with:
+          script: |
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              labels: 'update-failed', state: 'open'
+            });
+            for (const issue of issues.data) {
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issue.number, state: 'closed',
+                state_reason: 'completed'
+              });
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `Resolved by auto-update to ${{ steps.update.outputs.new_version }}.`
+              });
             }
-          ' 2>&1 | grep -oP 'got:\s+\K\S+' || true)
-          
-          if [ -n "$NEW_HASH" ]; then
-            echo "New hash: $NEW_HASH"
-            # Update the main source hash (first occurrence after rev)
-            sed -i "0,/hash = \"sha256-[^\"]*\";/s//hash = \"$NEW_HASH\";/" package.nix
-          fi
 
-      - name: Test build
-        if: steps.check.outputs.update == 'true'
-        run: |
-          nix build --show-trace 2>&1 | tail -50 || echo "Build may need manual fixes"
-
-      - name: Create Pull Request
-        if: steps.check.outputs.update == 'true'
-        uses: peter-evans/create-pull-request@v6
+      # Diagnostic issue on failure
+      - name: Create failure issue
+        if: steps.update.outputs.updated == 'true' && steps.update.outputs.exit_code == '1'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update nx-save-sync to ${{ steps.get_release.outputs.release }}"
-          title: "Update NX-Save-Sync to ${{ steps.get_release.outputs.release }}"
-          body: |
-            Automated update to latest NX-Save-Sync release.
-            
-            **New version:** `${{ steps.get_release.outputs.release }}`
-            **Previous version:** `${{ steps.get_release.outputs.current }}`
-            
-            Please verify the build works before merging.
-          branch: auto-update/nx-save-sync
-          delete-branch: true
+          script: |
+            const fs = require('fs');
+            const log = fs.readFileSync('/tmp/update.log', 'utf8');
+            const lastLines = log.split('\n').slice(-100).join('\n');
+            const errorType = '${{ steps.update.outputs.error_type }}' || 'unknown';
+            const oldV = '${{ steps.update.outputs.old_version }}' || '?';
+            const newV = '${{ steps.update.outputs.new_version }}' || '?';
+            const upstream = '${{ steps.update.outputs.upstream_url }}' || '';
+            const pkg = '${{ steps.update.outputs.package_name }}' || context.repo.repo;
+
+            // Close previous update-failed issues
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              labels: 'update-failed', state: 'open'
+            });
+            for (const issue of existing.data) {
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issue.number, state: 'closed',
+                state_reason: 'not_planned'
+              });
+            }
+
+            // Push attempted update to branch (best-effort)
+            const { execSync } = require('child_process');
+            let branchPushed = false;
+            try {
+              execSync('git config user.name "github-actions[bot]"');
+              execSync('git config user.email "41898282+github-actions[bot]@users.noreply.github.com"');
+              execSync(`git checkout -B update/${pkg}-${newV}`);
+              execSync('git add -A \':!AI-*.json\'');
+              execSync(`git commit -m "wip: attempted update ${oldV} → ${newV}" --allow-empty`);
+              execSync(`git push -f origin update/${pkg}-${newV}`);
+              branchPushed = true;
+            } catch (e) { /* best-effort */ }
+
+            const recoveryBlock = branchPushed ? [
+              '### Recovery',
+              '```bash',
+              `git fetch && git checkout update/${pkg}-${newV}`,
+              '# Fix the issue, then:',
+              'nix build --no-link && nix flake check --no-build',
+              `git checkout main && git merge update/${pkg}-${newV}`,
+              '```'
+            ] : [];
+
+            await github.rest.issues.create({
+              owner: context.repo.owner, repo: context.repo.repo,
+              title: `Update ${pkg} ${oldV} → ${newV}: ${errorType}`,
+              labels: ['update-failed'],
+              body: [
+                `## Update Failed: ${pkg} ${oldV} → ${newV}`,
+                '',
+                `**Failure**: \`${errorType}\``,
+                upstream ? `**Upstream**: ${upstream}` : '',
+                '',
+                '### Build log (last 100 lines)',
+                '<details><summary>Click to expand</summary>',
+                '',
+                '```',
+                lastLines,
+                '```',
+                '</details>',
+                '',
+                ...recoveryBlock,
+                '',
+                '---',
+                '*Created by [update workflow](.github/workflows/update.yml)*'
+              ].filter(Boolean).join('\n')
+            });
