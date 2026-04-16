@@ -1,5 +1,7 @@
 # nx-save-sync-nix
 
+[![CI](https://github.com/Daaboulex/nx-save-sync-nix/actions/workflows/ci.yml/badge.svg)](https://github.com/Daaboulex/nx-save-sync-nix/actions/workflows/ci.yml)
+
 Nix flake for [NX-Save-Sync](https://github.com/Xc987/NX-Save-Sync) - Switch save sync tool.
 
 NX-Save-Sync syncs save files between a Nintendo Switch and emulator (Ryujinx/Eden) or between multiple modded consoles.
