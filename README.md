@@ -1,6 +1,11 @@
 # nx-save-sync-nix
 
 [![CI](https://github.com/Daaboulex/nx-save-sync-nix/actions/workflows/ci.yml/badge.svg)](https://github.com/Daaboulex/nx-save-sync-nix/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/Daaboulex/nx-save-sync-nix)](./LICENSE)
+[![NixOS](https://img.shields.io/badge/NixOS-unstable-78C0E8?logo=nixos&logoColor=white)](https://nixos.org)
+[![Last commit](https://img.shields.io/github/last-commit/Daaboulex/nx-save-sync-nix)](https://github.com/Daaboulex/nx-save-sync-nix/commits)
+[![Stars](https://img.shields.io/github/stars/Daaboulex/nx-save-sync-nix?style=flat)](https://github.com/Daaboulex/nx-save-sync-nix/stargazers)
+[![Issues](https://img.shields.io/github/issues/Daaboulex/nx-save-sync-nix)](https://github.com/Daaboulex/nx-save-sync-nix/issues)
 
 Nix flake for [NX-Save-Sync](https://github.com/Xc987/NX-Save-Sync) - Switch save sync tool.
 
