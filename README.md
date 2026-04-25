@@ -7,11 +7,25 @@
 [![Stars](https://img.shields.io/github/stars/Daaboulex/nx-save-sync-nix?style=flat)](https://github.com/Daaboulex/nx-save-sync-nix/stargazers)
 [![Issues](https://img.shields.io/github/issues/Daaboulex/nx-save-sync-nix)](https://github.com/Daaboulex/nx-save-sync-nix/issues)
 
-Nix flake for [NX-Save-Sync](https://github.com/Xc987/NX-Save-Sync) - Switch save sync tool.
+Nix flake for [NX-Save-Sync](https://github.com/Xc987/NX-Save-Sync) — Switch save sync tool.
 
-NX-Save-Sync syncs save files between a Nintendo Switch and emulator (Ryujinx/Eden) or between multiple modded consoles.
+## Upstream
 
-**This package tracks upstream releases** with daily automated updates via GitHub Actions.
+This is a **Nix packaging wrapper** — not the original project. All credit for NX-Save-Sync goes to:
+
+- **Author**: [Xc987](https://github.com/Xc987)
+- **Repository**: [github.com/Xc987/NX-Save-Sync](https://github.com/Xc987/NX-Save-Sync)
+- **License**: [GPL-3.0](https://github.com/Xc987/NX-Save-Sync/blob/main/LICENSE)
+
+## What Is This?
+
+A Nix flake that builds NX-Save-Sync from upstream releases with full CI infrastructure:
+
+- **Daily automated updates** via GitHub Actions — new upstream releases land here within 24 h
+- **Pre-build verification** — fail-closed pipeline (eval → build → desktop check) before any push to `main`
+- **NixOS module** — exposes `programs.nx-save-sync.enable` for declarative install
+
+NX-Save-Sync syncs save files between a Nintendo Switch and emulator (Ryujinx/Eden), or between multiple modded consoles.
 
 ## Installation
 
@@ -59,6 +73,20 @@ nix run github:daaboulex/nx-save-sync-nix
 - A modded Nintendo Switch with the NX-Save-Sync homebrew installed
 - Network connection between PC and Switch
 
+## Development
+
+```bash
+git clone https://github.com/Daaboulex/nx-save-sync-nix
+cd nx-save-sync-nix
+nix develop                       # enter dev shell, installs pre-commit hooks
+nix fmt                           # format flake
+nix flake check --no-build        # eval check
+nix build                         # build the package
+./result/bin/nx-save-sync --help  # binary verify (mirrors CI desktop check)
+```
+
+CI runs the same chain daily via `.github/workflows/update.yml`; manual updates rarely needed.
+
 ## License
 
-GPL-3.0 (same as upstream)
+This packaging flake is [GPL-3.0](./LICENSE) licensed (matches upstream). Upstream NX-Save-Sync is [GPL-3.0](https://github.com/Xc987/NX-Save-Sync/blob/main/LICENSE).
